@@ -1,0 +1,46 @@
+.splash-container {
+  height: 100vh;
+  width: 100%;
+  background: linear-gradient(135deg,#0f5132,#198754,#14532d);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.splash-content {
+  text-align: center;
+}
+
+.splash-logo {
+  width: 120px;
+  margin-bottom: 20px;
+}
+
+.splash-content h1 {
+  font-size: 42px;
+  margin-bottom: 10px;
+}
+
+.splash-content p {
+  font-size: 18px;
+  opacity: 0.9;
+}
+
+/* Loader */
+
+.loader {
+  margin: 30px auto;
+  border: 5px solid rgba(255,255,255,0.3);
+  border-top: 5px solid white;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
