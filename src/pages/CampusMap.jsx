@@ -1,153 +1,253 @@
 import React, { useState, useRef } from "react";
-import { GoogleMap, useJsApiLoader, Marker, StandaloneSearchBox } from "@react-google-maps/api";
+import {
+  GoogleMap,
+  useJsApiLoader,
+  Marker,
+  StandaloneSearchBox,
+  InfoWindow,
+} from "@react-google-maps/api";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import "../styles/Home.css";
 
 const containerStyle = {
   width: "100%",
   height: "450px",
-  borderRadius: "12px",
-  overflow: "hidden",
+  borderRadius: "14px",
 };
 
 const campusCenter = { lat: 0.1284, lng: 34.8466 };
 
-// Predefined campus locations
+// Campus locations with descriptions
 const campusLocations = [
-  { name: "KAFU Library", position: { lat: 0.12870276929540347, lng: 34.847789094595264 } },
-  { name: "Admin Office", position: { lat: 0.1278568206940331, lng: 34.84778497362738 } },
-  { name: "Cafeteria", position: { lat: 0.1278486673907951, lng: 34.848760400753875 } },
-  { name: "Campus Gate", position: { lat: 0.1276964427303656, lng: 34.84862656799445 } },
-  { name: "Tuition Block", position: { lat: 0.12952626718556268, lng: 34.84603136640912 } },
-  { name: "ICT Labs", position: { lat: 0.12868149757611938, lng: 34.84791759882965 } },
-  { name: "Assembly Hall", position: { lat: 0.1282272747087612, lng: 34.84806193169177 } },
+  {
+    name: "KAFU Library",
+    description: "Main university library for study and research.",
+    hours: "Open: 8AM – 9PM",
+    position: { lat: 0.12870276929540347, lng: 34.847789094595264 },
+  },
+  {
+    name: "Admin Office",
+    description: "Main administration building.",
+    hours: "Open: 8AM – 5PM",
+    position: { lat: 0.1278568206940331, lng: 34.84778497362738 },
+  },
+  {
+    name: "Cafeteria",
+    description: "Student dining and refreshments area.",
+    hours: "Open: 7AM – 8PM",
+    position: { lat: 0.1278486673907951, lng: 34.848760400753875 },
+  },
+  {
+    name: "Campus Gate",
+    description: "Main entrance to the university campus.",
+    hours: "Open: 24 Hours",
+    position: { lat: 0.1276964427303656, lng: 34.84862656799445 },
+  },
+  {
+    name: "Tuition Block",
+    description: "Lecture halls and classrooms.",
+    hours: "Open: 8AM – 6PM",
+    position: { lat: 0.12952626718556268, lng: 34.84603136640912 },
+  },
+  {
+    name: "ICT Labs",
+    description: "Computer labs for programming and ICT studies.",
+    hours: "Open: 8AM – 8PM",
+    position: { lat: 0.12868149757611938, lng: 34.84791759882965 },
+  },
+  {
+    name: "Assembly Hall",
+    description: "Main hall for meetings and university events.",
+    hours: "Open: Events Only",
+    position: { lat: 0.1282272747087612, lng: 34.84806193169177 },
+  },
 ];
 
 function CampusMap() {
   const [map, setMap] = useState(null);
-  const [markers, setMarkers] = useState([{ position: campusCenter, name: "Campus Center" }]);
+  const [selectedLocation, setSelectedLocation] = useState(null);
   const searchBoxRef = useRef(null);
+  const navigate = useNavigate();
 
   const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: "AIzaSyDhkfpYRDnRaTqflKDV8ClYUYrd-a0qCNk", // Replace with your API key
+    googleMapsApiKey: "AIzaSyB_2_W77GP28ASsm0CER3MxAbN2o90kFQY",
     libraries: ["places"],
   });
 
-  const onMapLoad = (mapInstance) => setMap(mapInstance);
+  const onMapLoad = (mapInstance) => {
+    setMap(mapInstance);
+  };
 
+  // SEARCH
   const onPlacesChanged = () => {
     const places = searchBoxRef.current.getPlaces();
     if (!places || places.length === 0) return;
 
-    const newMarkers = places.map((place) => ({
-      position: {
-        lat: place.geometry.location.lat(),
-        lng: place.geometry.location.lng(),
-      },
-      name: place.name,
-    }));
+    const newPosition = {
+      lat: places[0].geometry.location.lat(),
+      lng: places[0].geometry.location.lng(),
+    };
 
-    setMarkers(newMarkers);
-    map.panTo(newMarkers[0].position);
-    map.setZoom(17);
+    map.panTo(newPosition);
+    map.setZoom(18);
   };
 
+  // CARD CLICK
   const goToLocation = (location) => {
-    setMarkers([{ position: location.position, name: location.name }]);
+    if (!map) return;
+
     map.panTo(location.position);
-    map.setZoom(18);
+    map.setZoom(19);
+    setSelectedLocation(location);
   };
 
   return isLoaded ? (
     <div
       className="main"
       style={{
-        paddingBottom: "30px",
-        maxHeight: "calc(100vh - 0px)",
+        paddingBottom: "40px",
         overflowY: "auto",
-        scrollBehavior: "smooth",
+        maxHeight: "100vh",
       }}
     >
-      {/* Welcome */}
+      {/* BACK BUTTON */}
+      <div style={{ padding: "20px 30px 0 30px" }}>
+        <button
+          onClick={() => navigate("/")}
+          style={{
+            background: "#16a34a",
+            border: "none",
+            color: "white",
+            padding: "10px 16px",
+            borderRadius: "8px",
+            cursor: "pointer",
+            fontWeight: "bold",
+          }}
+        >
+          ← Back to Home
+        </button>
+      </div>
+
+      {/* HEADER */}
       <motion.div
-        className="welcome"
-        initial={{ opacity: 0, y: 20 }}
+        style={{
+          background: "linear-gradient(135deg,#22c55e,#16a34a)",
+          padding: "40px",
+          borderRadius: "0 0 20px 20px",
+          color: "white",
+          textAlign: "center",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+          marginBottom: "30px",
+        }}
+        initial={{ opacity: 0, y: -40 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
       >
-        <h1>Campus Map</h1>
-        <p>Explore locations around Kaimosi Friends University</p>
+        <h1 style={{ fontSize: "32px", marginBottom: "10px" }}>
+          Kaimosi Friends University Map
+        </h1>
+        <p style={{ opacity: 0.9 }}>
+          Navigate campus buildings and facilities easily
+        </p>
       </motion.div>
 
-      {/* Search Bar */}
-      <div className="map-search-bar" style={{ padding: "0 30px", marginBottom: "20px" }}>
+      {/* SEARCH */}
+      <div style={{ padding: "0 30px", marginBottom: "30px" }}>
         <StandaloneSearchBox
           onLoad={(ref) => (searchBoxRef.current = ref)}
           onPlacesChanged={onPlacesChanged}
         >
-          <input
+          <motion.input
             type="text"
-            placeholder="Search for a location..."
-            className="search-map-input"
+            placeholder="🔍 Search campus or any location..."
+            whileFocus={{ scale: 1.03 }}
             style={{
               width: "100%",
-              padding: "12px 16px",
+              padding: "15px 20px",
               borderRadius: "12px",
-              border: "2px solid #e5e7eb",
-              fontSize: "14px",
-              transition: "0.3s",
+              border: "2px solid #22c55e",
+              outline: "none",
+              fontSize: "16px",
+              boxShadow: "0 5px 15px rgba(0,0,0,0.08)",
             }}
           />
         </StandaloneSearchBox>
       </div>
 
-      {/* Feature Cards */}
-      <div className="cards" style={{ padding: "0 30px 20px 30px" }}>
-        {campusLocations.map((loc, idx) => (
-          <motion.div
-            key={idx}
-            className="card"
-            onClick={() => goToLocation(loc)}
-            whileHover={{ scale: 1.05 }}
-            style={{
-              cursor: "pointer",
-              padding: "20px",
-              borderRadius: "14px",
-              background: "rgba(255,255,255,0.85)",
-              backdropFilter: "blur(10px)",
-              marginBottom: "15px",
-            }}
-          >
-            <h3>{loc.name}</h3>
-            <p>Click to locate on map</p>
-          </motion.div>
-        ))}
+      {/* CARD SLIDER */}
+      <div style={{ padding: "0 30px", marginBottom: "35px" }}>
+        <div
+          style={{
+            display: "flex",
+            overflowX: "auto",
+            gap: "20px",
+            scrollBehavior: "smooth",
+            paddingBottom: "10px",
+          }}
+        >
+          {campusLocations.map((loc, idx) => (
+            <motion.div
+              key={idx}
+              onClick={() => goToLocation(loc)}
+              whileHover={{ scale: 1.1 }}
+              style={{
+                minWidth: "240px",
+                padding: "20px",
+                borderRadius: "16px",
+                cursor: "pointer",
+                color: "white",
+                background:
+                  "linear-gradient(135deg,#3b82f6,#6366f1,#9333ea)",
+                boxShadow: "0 12px 25px rgba(0,0,0,0.2)",
+              }}
+            >
+              <h3>{loc.name}</h3>
+              <p style={{ opacity: 0.9 }}>Click to locate on map</p>
+            </motion.div>
+          ))}
+        </div>
       </div>
 
-      {/* Google Map */}
-      <div style={{ padding: "0 30px", marginBottom: "30px" }}>
+      {/* MAP */}
+      <div style={{ padding: "0 30px" }}>
         <GoogleMap
           mapContainerStyle={containerStyle}
           center={campusCenter}
           zoom={16}
           onLoad={onMapLoad}
         >
-          {markers.map((marker, idx) => (
+          {campusLocations.map((loc, idx) => (
             <Marker
               key={idx}
-              position={marker.position}
+              position={loc.position}
+              onClick={() => setSelectedLocation(loc)}
               icon={{
-                url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png", // standard red marker
-                scaledSize: new window.google.maps.Size(40, 40),
-                anchor: new window.google.maps.Point(20, 40), // anchor the tip of the marker
+                url: "https://maps.google.com/mapfiles/ms/icons/red-pushpin.png",
               }}
             />
           ))}
+
+          {selectedLocation && (
+            <InfoWindow
+              position={selectedLocation.position}
+              onCloseClick={() => setSelectedLocation(null)}
+            >
+              <div style={{ maxWidth: "200px" }}>
+                <h3>{selectedLocation.name}</h3>
+                <p>{selectedLocation.description}</p>
+                <p style={{ color: "green", fontWeight: "bold" }}>
+                  {selectedLocation.hours}
+                </p>
+              </div>
+            </InfoWindow>
+          )}
         </GoogleMap>
       </div>
     </div>
   ) : (
-    <div style={{ textAlign: "center", padding: "50px", fontSize: "18px" }}>Loading Map...</div>
+    <div style={{ padding: "40px", textAlign: "center" }}>
+      Loading Campus Map...
+    </div>
   );
 }
 
