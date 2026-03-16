@@ -2,185 +2,164 @@ require("dotenv").config()
 
 const express = require("express")
 const cors = require("cors")
-const axios = require("axios")
-const cheerio = require("cheerio")
+const puppeteer = require("puppeteer")
 const OpenAI = require("openai")
 
 const app = express()
 
-// FIX CORS FOR VITE + LOCALHOST
 app.use(cors({
-  origin: ["http://localhost:5173","http://localhost:3000"],
-  methods: ["GET","POST"],
-  allowedHeaders: ["Content-Type"]
+  origin:["http://localhost:5173","http://localhost:3000"]
 }))
 
 app.use(express.json())
 
-// OPENROUTER
+/* ---------------- OPENROUTER ---------------- */
+
 const openai = new OpenAI({
   apiKey: process.env.OPENROUTER_KEY,
-  baseURL: "https://openrouter.ai/api/v1",
-  defaultHeaders: {
-    "HTTP-Referer": "http://localhost:5173",
-    "X-Title": "KAFU AI Assistant"
-  }
+  baseURL:"https://openrouter.ai/api/v1"
 })
 
+/* ---------------- TEST ROUTE ---------------- */
 
-// TEST ROUTE
-app.get("/", (req, res) => {
-  res.send("🤖 KAFU AI Server is running")
+app.get("/",(req,res)=>{
+  res.send("🤖 KAFU AI Server Running")
 })
 
+/* ---------------- SCRAPE PROGRAMS WITH PUPPETEER ---------------- */
 
+app.get("/api/programs", async(req,res)=>{
 
-// SCRAPE FUNCTION
-async function scrapePage(url){
+  let browser
 
   try{
 
-    console.log("📡 Scraping:",url)
+    console.log("🚀 Launching browser to scrape KAFU")
 
-    const response = await axios.get(url,{
-      timeout:15000,
-      headers:{
-        "User-Agent":"Mozilla/5.0"
-      }
+    browser = await puppeteer.launch({
+      headless:true,
+      args:["--no-sandbox","--disable-setuid-sandbox"]
     })
 
-    const $ = cheerio.load(response.data)
+    const page = await browser.newPage()
 
-    let text = $("body").text()
+    await page.goto("https://kafu.ac.ke/academic-programmes/",{
+      waitUntil:"networkidle2"
+    })
 
-    text = text.replace(/\s+/g," ")
+    const programs = await page.evaluate(()=>{
 
-    return text
+      const items = Array.from(document.querySelectorAll("h1,h2,h3,h4,li,p"))
+
+      const programs = []
+
+      items.forEach(el=>{
+
+        const text = el.innerText.trim()
+
+        if(
+          text.includes("Bachelor") ||
+          text.includes("Master") ||
+          text.includes("Diploma") ||
+          text.includes("PhD")
+        ){
+          programs.push(text)
+        }
+
+      })
+
+      return [...new Set(programs)]
+
+    })
+
+    console.log("✅ Programs found:",programs.length)
+
+    await browser.close()
+
+    res.json(programs)
 
   }catch(error){
 
-    console.log("❌ Scrape error:",url)
+    console.log("🔥 SCRAPE ERROR:",error.message)
 
-    return ""
+    if(browser) await browser.close()
+
+    res.status(500).json({
+      error:"Failed to fetch programs"
+    })
 
   }
 
-}
+})
 
+/* ---------------- PROGRAM DETAILS ---------------- */
 
+app.get("/api/programs/:name", async (req, res) => {
+  let browser;
+  try {
+    const programName = req.params.name;
+    console.log("📘 Fetching details for:", programName);
 
-// MAIN API
-app.get("/api/programs", async (req,res)=>{
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    });
 
-  try{
+    const page = await browser.newPage();
 
-    console.log("🚀 Fetching KAFU pages...")
+    // Step 1: Go to programs list page
+    await page.goto("https://kafu.ac.ke/academic-programmes/", { waitUntil: "networkidle2" });
 
-    const pages=[
+    // Step 2: Find the program URL dynamically
+    const programURL = await page.evaluate((name) => {
+      const links = Array.from(document.querySelectorAll("a"));
+      const match = links.find(a => a.innerText.toLowerCase().includes(name.toLowerCase()));
+      return match ? match.href : null;
+    }, programName);
 
-      "https://kafu.ac.ke/programmes",
-      "https://kafu.ac.ke/admissions",
-      "https://kafu.ac.ke/schools"
-
-    ]
-
-    let combinedText=""
-
-    for(const page of pages){
-
-      const text = await scrapePage(page)
-
-      combinedText += text + " "
-
+    if (!programURL) {
+      await browser.close();
+      return res.json({ details: "Could not find the program page on the university site." });
     }
 
-    combinedText = combinedText.substring(0,9000)
+    console.log("🔗 Program page found:", programURL);
 
-    console.log("📄 Text length:",combinedText.length)
+    // Step 3: Visit program-specific page
+    await page.goto(programURL, { waitUntil: "networkidle2" });
+    const pageText = await page.evaluate(() => document.body.innerText);
 
+    await browser.close();
 
-
-    console.log("🤖 Sending to AI...")
-
+    // Step 4: Send text to AI
     const completion = await openai.chat.completions.create({
-
-      model:"openai/gpt-4o-mini",
-
-      messages:[
+      model: "openai/gpt-4o-mini",
+      messages: [
         {
-          role:"system",
-          content:"Extract all academic programs offered by the university. Return ONLY a JSON array of program names."
+          role: "system",
+          content: "You are a Kenyan university assistant. Provide structured info: Program Overview, Admission Requirements, Course Content, Career Opportunities."
         },
         {
-          role:"user",
-          content:combinedText
+          role: "user",
+          content: `Program: ${programName}\n\nWebsite content:\n${pageText.slice(0, 9000)}`
         }
       ],
+      temperature: 0.3
+    });
 
-      temperature:0.2
+    const details = completion.choices?.[0]?.message?.content || "Details not available.";
 
-    })
+    res.json({ details });
 
-
-
-    let aiResponse = completion.choices[0].message.content
-
-    console.log("🧠 AI RAW:",aiResponse)
-
-
-
-    // CLEAN RESPONSE
-    aiResponse = aiResponse
-      .replace(/```json/g,"")
-      .replace(/```/g,"")
-      .trim()
-
-
-
-    try{
-
-      const programs = JSON.parse(aiResponse)
-
-      console.log("✅ Programs parsed:",programs.length)
-
-      return res.json(programs)
-
-    }catch(parseError){
-
-      console.log("⚠ JSON parse failed, fixing format")
-
-      const programs = aiResponse
-        .replace(/\[/g,"")
-        .replace(/\]/g,"")
-        .replace(/'/g,"")
-        .split(",")
-        .map(p=>p.trim())
-        .filter(p=>p.length>5)
-
-      console.log("✅ Programs recovered:",programs.length)
-
-      return res.json(programs)
-
-    }
-
-  }catch(error){
-
-    console.log("🔥 SERVER ERROR:",error.message)
-
-    return res.status(500).json({
-      error:"AI could not fetch programs"
-    })
-
+  } catch (error) {
+    console.log("🔥 DETAILS ERROR:", error.message);
+    if (browser) await browser.close();
+    res.json({ details: "AI could not fetch detailed information for this program." });
   }
-
-})
-
-
+});
+/* ---------------- SERVER ---------------- */
 
 const PORT = process.env.PORT || 5000
 
 app.listen(PORT,()=>{
-
-  console.log(`🤖 AI Server running on port ${PORT}`)
-
+  console.log(`🤖 KAFU AI Server running on port ${PORT}`)
 })

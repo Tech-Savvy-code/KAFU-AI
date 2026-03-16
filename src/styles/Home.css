@@ -568,3 +568,10 @@ transform:translateY(0);
   transform: translateY(-5px) scale(1.03);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
 }
+/* Scroll view in the entire page */
+.main {
+  height: 100vh;       /* full viewport height */
+  overflow-y: auto;    /* enable vertical scrolling */
+  scroll-behavior: smooth; /* smooth scrolling when jumping */
+  padding-bottom: 40px; /* optional: to avoid content being cut off */
+}

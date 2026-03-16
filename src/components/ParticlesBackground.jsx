@@ -1,54 +1,71 @@
-import { useCallback } from "react";
-import Particles from "react-tsparticles";
-import { loadFull } from "tsparticles";
+import { useEffect, useState } from "react"
+import Particles from "@tsparticles/react"
+import { loadSlim } from "@tsparticles/slim"
 
 export default function ParticlesBackground(){
 
-const particlesInit = useCallback(async (engine) => {
-await loadFull(engine);
-}, []);
+  const [init,setInit] = useState(false)
 
-return(
+  useEffect(()=>{
 
-<Particles
-id="tsparticles"
-init={particlesInit}
-options={{
-fullScreen:{ enable:false },
+    const initParticles = async(engine)=>{
+      await loadSlim(engine)
+    }
 
-particles:{
-number:{ value:50 },
+    initParticles()
+    setInit(true)
 
-color:{ value:"#10b981" },
+  },[])
 
-links:{
-enable:true,
-distance:150,
-color:"#10b981",
-opacity:0.3,
-width:1
-},
+  if(!init) return null
 
-move:{
-enable:true,
-speed:1
-},
+  return (
 
-size:{
-value:3
-},
+    <Particles
+      id="tsparticles"
+      options={{
 
-opacity:{
-value:0.4
-}
-},
+        fullScreen:{ enable:false },
 
-background:{
-color:"transparent"
-}
-}}
-/>
+        background:{
+          color:"transparent"
+        },
 
-)
+        particles:{
 
+          number:{
+            value:50
+          },
+
+          color:{
+            value:"#10b981"
+          },
+
+          links:{
+            enable:true,
+            distance:150,
+            color:"#10b981",
+            opacity:0.3,
+            width:1
+          },
+
+          move:{
+            enable:true,
+            speed:1
+          },
+
+          size:{
+            value:3
+          },
+
+          opacity:{
+            value:0.4
+          }
+
+        }
+
+      }}
+    />
+
+  )
 }
