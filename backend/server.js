@@ -162,4 +162,169 @@ const PORT = process.env.PORT || 5000
 
 app.listen(PORT,()=>{
   console.log(`🤖 KAFU AI Server running on port ${PORT}`)
+  console.log(`📍 Local: http://localhost:${PORT}`)
+  console.log(`🌐 Visit: www.kafu.ac.ke for university information`)
 })
+
+/* ---------------- DOCUMENTS page ---------------- */
+
+app.get("/api/documents", async (req, res) => {
+  let browser;
+
+  try {
+    console.log("🚀 Launching browser to fetch documents");
+    browser = await puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    });
+
+    const page = await browser.newPage();
+
+    await page.goto("https://kafu.ac.ke/academic-programmes/", {
+      waitUntil: "networkidle2"
+    });
+
+    // Grab all links that look like documents (PDF, DOCX)
+    const docs = await page.evaluate(() => {
+      const links = Array.from(document.querySelectorAll("a"));
+      const docLinks = links
+        .filter(a => a.href.endsWith(".pdf") || a.href.endsWith(".docx") || a.href.endsWith(".doc"))
+        .map(a => a.innerText || a.href.split("/").pop());
+      return [...new Set(docLinks)];
+    });
+
+    await browser.close();
+
+    if (docs.length === 0) throw new Error("No documents found");
+
+    console.log("✅ Documents found:", docs.length);
+    res.json(docs);
+
+  } catch (error) {
+    console.log("🔥 DOCUMENTS SCRAPE ERROR:", error.message);
+    if (browser) await browser.close();
+    res.status(500).json([]);
+  }
+});
+
+/* ---------------- CHAT WITH AI ---------------- */
+
+app.post("/api/chat", async (req, res) => {
+  const { message, context } = req.body;
+
+  try {
+    console.log("💬 Chat request:", message);
+
+    // Scrape KAFU website for context
+    const kafuContext = await scrapeKAFUInfo();
+
+    // Use OpenRouter AI to generate response
+    const completion = await openai.chat.completions.create({
+      model: "mistralai/mistral-7b-instruct:free",
+      messages: [
+        {
+          role: "system",
+          content: `You are KAFU AI, the official smart campus assistant for Kaimosi Friends University.
+          
+          Your role:
+          - Answer questions about KAFU programs, admissions, fees, campus life
+          - Provide accurate information from the university
+          - Be friendly, helpful, and professional
+          - If unsure, direct students to official channels
+          
+          Key Information:
+          - Website: www.kafu.ac.ke
+          - Email: info@kafu.ac.ke
+          - Location: Kaimosi, Vihiga County, Kenya
+          - Phone: +254 700 123 456
+          
+          ${kafuContext ? "Current info from website: " + kafuContext : ""}
+          
+          Keep responses concise but informative. Use bullet points and emojis for clarity.`
+        },
+        {
+          role: "user",
+          content: message
+        }
+      ],
+      max_tokens: 800,
+      temperature: 0.7
+    });
+
+    const aiResponse = completion.choices[0].message.content;
+    console.log("✅ AI Response:", aiResponse);
+
+    res.json({
+      response: aiResponse,
+      timestamp: new Date(),
+      source: "ai"
+    });
+
+  } catch (error) {
+    console.error("❌ Chat error:", error.message);
+    
+    // Fallback response
+    res.json({
+      response: getFallbackResponse(message),
+      timestamp: new Date(),
+      source: "fallback"
+    });
+  }
+});
+
+// Scrape KAFU website for information
+async function scrapeKAFUInfo() {
+  try {
+    const browser = await puppeteer.launch({ 
+      headless: true, 
+      args: ["--no-sandbox", "--disable-setuid-sandbox"] 
+    });
+    const page = await browser.newPage();
+    await page.goto("https://kafu.ac.ke", { 
+      waitUntil: "networkidle2",
+      timeout: 10000 
+    });
+
+    const info = await page.evaluate(() => {
+      const title = document.querySelector('h1')?.innerText || '';
+      const desc = document.querySelector('meta[name="description"]')?.content || '';
+      const links = Array.from(document.querySelectorAll('a')).slice(0, 10).map(a => a.innerText).filter(t => t.length > 0);
+      return { title, desc, links };
+    });
+
+    await browser.close();
+    return `${info.title}. ${info.desc}`;
+  } catch (error) {
+    console.log("⚠️ Scrape error:", error.message);
+    return "";
+  }
+}
+
+// Fallback response function
+function getFallbackResponse(question) {
+  const q = question.toLowerCase();
+  
+  if (q.includes("program") || q.includes("course")) {
+    return "📚 KAFU offers various programs including Education, Business, Science, and Arts. Visit www.kafu.ac.ke for detailed information.";
+  }
+  if (q.includes("admission") || q.includes("apply")) {
+    return "🎓 For admissions, visit www.kafu.ac.ke or contact admissions@kafu.ac.ke. Requirements vary by program.";
+  }
+  if (q.includes("fee") || q.includes("payment")) {
+    return "💰 For fee structure, contact the finance office or visit www.kafu.ac.ke. Payment plans are available.";
+  }
+  if (q.includes("location") || q.includes("where") || q.includes("campus")) {
+    return "📍 KAFU is located in Kaimosi, Vihiga County. Use the Campus Map feature for navigation.";
+  }
+  if (q.includes("exam") || q.includes("test")) {
+    return "📝 Exam timetables are available on the student portal. Check with your department for specific dates.";
+  }
+  if (q.includes("library") || q.includes("book")) {
+    return "📖 The library is open Mon-Fri 8AM-9PM, Sat 9AM-5PM, Sun 2PM-9PM. 24/7 during exams.";
+  }
+  if (q.includes("contact") || q.includes("phone") || q.includes("email")) {
+    return "📞 Contact: info@kafu.ac.ke | +254 700 123 456 | www.kafu.ac.ke";
+  }
+  
+  return "Thank you for your question! For detailed information, please visit www.kafu.ac.ke or contact the relevant department. How else can I help you?";
+}

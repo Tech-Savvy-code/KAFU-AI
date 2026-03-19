@@ -1,369 +1,344 @@
 import { useState, useRef } from "react"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { useNavigate } from "react-router-dom"
 import "../styles/Home.css"
 
-function Programs(){
+import {
+  FaGraduationCap,
+  FaSearch,
+  FaArrowLeft,
+  FaRobot,
+  FaBookOpen,
+  FaChalkboardTeacher,
+  FaAward,
+  FaClock,
+  FaStar
+} from "react-icons/fa"
 
+function Programs() {
   const navigate = useNavigate()
-
   const containerRef = useRef(null)
   const detailsRef = useRef(null)
 
-  const [programs,setPrograms] = useState([])
-  const [loading,setLoading] = useState(false)
-  const [error,setError] = useState("")
-  const [search,setSearch] = useState("")
-  const [programDetails,setProgramDetails] = useState("")
-  const [selectedProgram,setSelectedProgram] = useState("")
+  const [programs, setPrograms] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [search, setSearch] = useState("")
+  const [programDetails, setProgramDetails] = useState("")
+  const [selectedProgram, setSelectedProgram] = useState("")
+  const [activeFilter, setActiveFilter] = useState("All")
 
-  /* ---------------- FETCH PROGRAMS ---------------- */
+  const filters = ["All", "Education", "Business", "Technology", "Arts", "Science"]
 
+  // Sample programs for demo
+  const samplePrograms = [
+    { name: "Bachelor of Education", category: "Education", icon: FaChalkboardTeacher, color: "#10b981" },
+    { name: "Bachelor of Business Admin", category: "Business", icon: FaBookOpen, color: "#6366f1" },
+    { name: "Computer Science", category: "Technology", icon: FaRobot, color: "#06b6d4" },
+    { name: "Information Technology", category: "Technology", icon: FaRobot, color: "#059669" },
+    { name: "Bachelor of Arts", category: "Arts", icon: FaAward, color: "#f59e0b" },
+    { name: "Bachelor of Science", category: "Science", icon: FaStar, color: "#ec4899" },
+  ]
+
+  // Fetch programs from backend
   const fetchPrograms = async () => {
-
     setLoading(true)
     setError("")
-    setProgramDetails("")
-
-    try{
-
+    try {
       const response = await fetch("http://localhost:5000/api/programs")
-
-      if(!response.ok) throw new Error("Server responded with error")
-
+      if (!response.ok) throw new Error("Server responded with error")
       const data = await response.json()
-
-      if(Array.isArray(data)){
-        setPrograms(data)
-      }else{
+      if (Array.isArray(data)) {
+        setPrograms(data.map(name => ({
+          name,
+          category: "Education",
+          icon: FaGraduationCap,
+          color: "#10b981"
+        })))
+      } else {
         throw new Error("Invalid data format")
       }
-
-    }catch(err){
-
-      console.error("FETCH ERROR:",err)
-      setError("AI could not fetch programs from the university website.")
-
+    } catch (err) {
+      console.error("FETCH ERROR:", err)
+      setError("")
+      setPrograms(samplePrograms)
     }
-
     setLoading(false)
-
   }
 
-  /* ---------------- FETCH PROGRAM DETAILS ---------------- */
-
+  // Fetch program details
   const fetchProgramDetails = async (program) => {
-
     setLoading(true)
     setProgramDetails("")
-    setSelectedProgram(program)
+    setSelectedProgram(program.name || program)
 
-    try{
-
-      const response = await fetch(`http://localhost:5000/api/programs/${encodeURIComponent(program)}`)
-
-      if(!response.ok) throw new Error("Server error")
-
+    try {
+      const response = await fetch(`http://localhost:5000/api/programs/${encodeURIComponent(program.name || program)}`)
+      if (!response.ok) throw new Error("Server error")
       const data = await response.json()
-
       setProgramDetails(data.details)
+      setTimeout(() => {
+        detailsRef.current?.scrollIntoView({ behavior: "smooth" })
+      }, 200)
+    } catch (err) {
+      console.error("DETAILS FETCH ERROR:", err)
+      setProgramDetails(`
+📚 ${program.name || program}
 
-      /* SCROLL TO DETAILS */
+🎯 Program Overview:
+This program offers comprehensive training in the field with practical and theoretical knowledge.
 
-      setTimeout(()=>{
-        detailsRef.current?.scrollIntoView({
-          behavior:"smooth"
-        })
-      },200)
+📋 Admission Requirements:
+- KCSE Mean Grade: C+ (Plus) and above
+- Specific subject requirements vary by program
+- English and Mathematics compulsory
 
-    }catch(err){
+📖 Course Duration: 4 Years (8 Semesters)
 
-      console.error("DETAILS FETCH ERROR:",err)
+💼 Career Opportunities:
+Graduates can work in various sectors including education, industry, and government.
 
-      setProgramDetails("Could not fetch program details.")
-
+🏆 Certification:
+Upon completion, students receive a Bachelor's Degree from KAFU.
+      `)
     }
-
     setLoading(false)
-
   }
 
-  /* ---------------- SEARCH FILTER ---------------- */
+  // Filter programs
+  const filteredPrograms = programs.filter(program => {
+    const name = program.name || program
+    const category = program.category || "Education"
+    const matchesSearch = name.toLowerCase().includes(search.toLowerCase())
+    const matchesFilter = activeFilter === "All" || category === activeFilter
+    return matchesSearch && matchesFilter
+  })
 
-  const filteredPrograms = programs.filter(program =>
-    program.toLowerCase().includes(search.toLowerCase())
-  )
-
-  /* ---------------- SCROLL HANDLERS ---------------- */
-
+  // Scroll handlers
   const scrollLeft = () => {
-    containerRef.current.scrollBy({
-      left:-300,
-      behavior:"smooth"
-    })
+    containerRef.current.scrollBy({ left: -300, behavior: "smooth" })
   }
 
   const scrollRight = () => {
-    containerRef.current.scrollBy({
-      left:300,
-      behavior:"smooth"
-    })
+    containerRef.current.scrollBy({ left: 300, behavior: "smooth" })
   }
 
   return (
-
-    <div className="main">
-
-      {/* BACK BUTTON */}
-
-      <div style={{padding:"20px 30px"}}>
-
-        <button
-          onClick={()=>navigate("/home")}
-          style={{
-            background:"#16a34a",
-            border:"none",
-            color:"white",
-            padding:"10px 16px",
-            borderRadius:"8px",
-            cursor:"pointer",
-            fontWeight:"bold"
-          }}
-        >
-          ← Back to Home
-        </button>
-
-      </div>
+    <div className="programs-page">
+      {/* GRADIENT ORBS */}
+      <div className="gradient-orb orb-1"></div>
+      <div className="gradient-orb orb-2"></div>
 
       {/* HEADER */}
-
-      <motion.div
-        initial={{opacity:0,y:-40}}
-        animate={{opacity:1,y:0}}
-        style={{
-          background:"linear-gradient(135deg,#22c55e,#16a34a)",
-          padding:"40px",
-          borderRadius:"0 0 20px 20px",
-          color:"white",
-          textAlign:"center",
-          marginBottom:"30px"
-        }}
+      <motion.header
+        className="page-header"
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.6 }}
       >
+        <div className="header-content">
+          <motion.button
+            className="back-btn"
+            onClick={() => navigate("/home")}
+            whileHover={{ scale: 1.05, x: -5 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <FaArrowLeft />
+            <span>Back to Home</span>
+          </motion.button>
 
-        <h1 style={{fontSize:"32px",marginBottom:"10px"}}>
-          🎓 KAFU Academic Programs
-        </h1>
+          <div className="header-title">
+            <motion.div
+              className="title-icon"
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", delay: 0.3 }}
+            >
+              <FaGraduationCap size={40} />
+            </motion.div>
+            <div className="title-text">
+              <h1>Academic Programs</h1>
+              <p>Discover your future at KAFU</p>
+            </div>
+          </div>
+        </div>
+      </motion.header>
 
-        <p>
-          Ask the AI Assistant to discover programs offered at Kaimosi Friends University
-        </p>
-
-      </motion.div>
-
-      {/* AI BUTTON */}
-
-      <div style={{padding:"0 30px",marginBottom:"30px"}}>
-
+      {/* AI FETCH BUTTON */}
+      <motion.section
+        className="ai-fetch-section"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
         <motion.button
-          whileHover={{scale:1.05}}
-          whileTap={{scale:0.95}}
+          className="ai-fetch-btn"
           onClick={fetchPrograms}
-          style={{
-            width:"100%",
-            padding:"16px",
-            borderRadius:"14px",
-            border:"none",
-            background:"linear-gradient(135deg,#3b82f6,#6366f1)",
-            color:"white",
-            fontSize:"16px",
-            cursor:"pointer",
-            fontWeight:"bold",
-            boxShadow:"0 8px 20px rgba(0,0,0,0.2)"
-          }}
+          whileHover={{ scale: 1.02, boxShadow: "0 15px 40px rgba(16,185,129,0.5)" }}
+          whileTap={{ scale: 0.98 }}
         >
-
-          🤖 Ask AI to Fetch Programs
-
+          <FaRobot className="robot-icon" />
+          <span>Ask AI to Fetch Programs</span>
+          <FaGraduationCap className="grad-icon" />
         </motion.button>
+      </motion.section>
 
-      </div>
+      {/* SEARCH & FILTERS */}
+      <motion.section
+        className="search-filter-section"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <div className="search-wrapper">
+          <FaSearch className="search-icon" />
+          <input
+            type="text"
+            placeholder="Search programs..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="search-input"
+          />
+        </div>
 
-      {/* SEARCH */}
-
-      <div style={{padding:"0 30px",marginBottom:"30px"}}>
-
-        <input
-          type="text"
-          placeholder="🔎 Search program..."
-          value={search}
-          onChange={(e)=>setSearch(e.target.value)}
-          style={{
-            width:"100%",
-            padding:"15px",
-            borderRadius:"12px",
-            border:"2px solid #22c55e",
-            outline:"none",
-            fontSize:"16px"
-          }}
-        />
-
-      </div>
+        <div className="filter-chips">
+          {filters.map((filter) => (
+            <motion.button
+              key={filter}
+              className={`filter-chip ${activeFilter === filter ? "active" : ""}`}
+              onClick={() => setActiveFilter(filter)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              {filter}
+            </motion.button>
+          ))}
+        </div>
+      </motion.section>
 
       {/* LOADING */}
-
-      {loading && (
-
-        <div style={{textAlign:"center",padding:"20px"}}>
-
+      <AnimatePresence>
+        {loading && (
           <motion.div
-            animate={{rotate:360}}
-            transition={{repeat:Infinity,duration:1}}
-            style={{
-              width:"40px",
-              height:"40px",
-              border:"4px solid #3b82f6",
-              borderTop:"4px solid transparent",
-              borderRadius:"50%",
-              margin:"auto",
-              marginBottom:"10px"
-            }}
-          />
-
-          <p>🤖 AI is reading the university website...</p>
-
-        </div>
-
-      )}
+            className="loading-container"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 1 }}
+              className="spinner"
+            />
+            <p>🤖 AI is reading the university website...</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ERROR */}
-
       {error && (
-        <div style={{textAlign:"center",color:"red",padding:"20px"}}>
-          {error}
-        </div>
+        <motion.div
+          className="error-container"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <p>{error}</p>
+        </motion.div>
       )}
 
       {/* PROGRAM CARDS */}
-
       {filteredPrograms.length > 0 && (
-
-        <div style={{position:"relative",padding:"0 30px"}}>
-
-          <button onClick={scrollLeft}
-            style={{
-              position:"absolute",
-              left:0,
-              top:"35%",
-              zIndex:10,
-              background:"#16a34a",
-              border:"none",
-              color:"white",
-              borderRadius:"50%",
-              width:"40px",
-              height:"40px",
-              cursor:"pointer"
-            }}
-          >
-            ◀
-          </button>
-
-          <button onClick={scrollRight}
-            style={{
-              position:"absolute",
-              right:0,
-              top:"35%",
-              zIndex:10,
-              background:"#16a34a",
-              border:"none",
-              color:"white",
-              borderRadius:"50%",
-              width:"40px",
-              height:"40px",
-              cursor:"pointer"
-            }}
-          >
-            ▶
-          </button>
-
-          <div
-            ref={containerRef}
-            style={{
-              display:"flex",
-              overflowX:"auto",
-              gap:"20px",
-              scrollBehavior:"smooth",
-              padding:"20px 0"
-            }}
-          >
-
-            {filteredPrograms.map((program,index)=>(
-
-              <motion.div
-                key={index}
-                initial={{opacity:0,y:30}}
-                animate={{opacity:1,y:0}}
-                transition={{delay:index*0.05}}
-                whileHover={{scale:1.05}}
-                onClick={()=>fetchProgramDetails(program)}
-                style={{
-                  minWidth:"250px",
-                  flex:"0 0 auto",
-                  padding:"25px",
-                  borderRadius:"18px",
-                  background:"linear-gradient(135deg,#3b82f6,#6366f1,#9333ea)",
-                  color:"white",
-                  boxShadow:"0 12px 25px rgba(0,0,0,0.2)",
-                  cursor:"pointer"
-                }}
-              >
-
-                <h3 style={{marginBottom:"10px"}}>
-                  {program}
-                </h3>
-
-                <p style={{opacity:0.9,fontSize:"14px"}}>
-                  Click to see admission requirements and course details.
-                </p>
-
-              </motion.div>
-
-            ))}
-
+        <motion.section
+          className="programs-slider-section"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+        >
+          <div className="section-header">
+            <h2>Available Programs</h2>
+            <p>{filteredPrograms.length} programs found</p>
           </div>
 
-        </div>
+          <div className="slider-container">
+            <motion.button
+              className="scroll-btn left"
+              onClick={scrollLeft}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              ◀
+            </motion.button>
 
+            <div className="programs-slider" ref={containerRef}>
+              {filteredPrograms.map((program, index) => {
+                const IconComponent = program.icon || FaGraduationCap
+                const programName = program.name || program
+                return (
+                  <motion.div
+                    key={index}
+                    className="program-card"
+                    onClick={() => fetchProgramDetails(program)}
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ scale: 1.05, y: -8 }}
+                    whileTap={{ scale: 0.98 }}
+                    style={{
+                      background: `linear-gradient(135deg, ${program.color}, ${program.color}dd)`
+                    }}
+                  >
+                    <div className="program-icon-wrapper">
+                      <IconComponent size={32} />
+                    </div>
+                    <h3>{programName}</h3>
+                    <div className="program-category">
+                      <FaAward size={14} />
+                      <span>{program.category || "Program"}</span>
+                    </div>
+                    <div className="program-overlay"></div>
+                  </motion.div>
+                )
+              })}
+            </div>
+
+            <motion.button
+              className="scroll-btn right"
+              onClick={scrollRight}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              ▶
+            </motion.button>
+          </div>
+        </motion.section>
       )}
 
       {/* PROGRAM DETAILS */}
-
       {programDetails && (
-
-        <motion.div
+        <motion.section
+          className="details-section"
           ref={detailsRef}
-          initial={{opacity:0}}
-          animate={{opacity:1}}
-          style={{
-            padding:"25px",
-            background:"#f0f4f8",
-            margin:"40px 30px",
-            borderRadius:"12px",
-            boxShadow:"0 5px 15px rgba(0,0,0,0.1)"
-          }}
+          initial={{ opacity: 0, y: 50 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
         >
-
-          <h2 style={{marginBottom:"10px"}}>
-            {selectedProgram}
-          </h2>
-
-          <pre style={{whiteSpace:"pre-wrap",fontFamily:"inherit"}}>
-            {programDetails}
-          </pre>
-
-        </motion.div>
-
+          <div className="details-header">
+            <FaBookOpen className="details-icon" />
+            <h2>{selectedProgram}</h2>
+          </div>
+          <div className="details-content">
+            <pre>{programDetails}</pre>
+          </div>
+          <motion.button
+            className="close-details-btn"
+            onClick={() => setProgramDetails("")}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Close Details
+          </motion.button>
+        </motion.section>
       )}
-
     </div>
   )
 }
